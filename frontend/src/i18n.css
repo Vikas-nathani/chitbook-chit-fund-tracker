@@ -1,0 +1,152 @@
+/* =====================================================================
+   Language switch + Telugu typography (loaded after styles.css / pnl.css)
+   ===================================================================== */
+
+.lang-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.lang-switch button {
+  min-width: 38px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.3;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.lang-switch button:focus-visible {
+  outline: 3px solid rgba(124, 58, 237, 0.4);
+  outline-offset: 1px;
+}
+.lang-light {
+  background: #ece9fb;
+}
+.lang-light button {
+  color: var(--muted);
+}
+.lang-light button.is-on {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(30, 27, 75, 0.15);
+}
+.lang-dark {
+  background: rgba(255, 255, 255, 0.12);
+}
+.lang-dark button {
+  color: rgba(255, 255, 255, 0.8);
+}
+.lang-dark button:hover {
+  color: #fff;
+}
+.lang-dark button.is-on {
+  background: #fff;
+  color: var(--ink);
+}
+
+.auth-panel {
+  position: relative;
+}
+.auth-lang {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+}
+
+.logout-icon {
+  display: none;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* ----- Telugu typography -----
+   Negative or wide letter-spacing breaks up Telugu conjuncts, and very small
+   uppercase-style labels get hard to read, so Telugu mode resets both. */
+:root[lang='te'] *,
+:root[lang='te'] *::before,
+:root[lang='te'] *::after {
+  letter-spacing: normal !important;
+}
+:root[lang='te'] body {
+  line-height: 1.5;
+}
+:root[lang='te'] h1,
+:root[lang='te'] h2,
+:root[lang='te'] h3 {
+  line-height: 1.35;
+}
+:root[lang='te'] .auth-hero-copy h1 {
+  line-height: 1.3;
+  max-width: 18ch;
+}
+:root[lang='te'] .data-table thead th,
+:root[lang='te'] .amount-table thead th,
+:root[lang='te'] .hero-preview-head {
+  text-transform: none;
+  font-size: 0.8rem;
+}
+:root[lang='te'] .month-num,
+:root[lang='te'] .received-tag,
+:root[lang='te'] .foot-due {
+  font-size: 0.72rem;
+}
+:root[lang='te'] .stat-label,
+:root[lang='te'] .kpi-label,
+:root[lang='te'] .kpi-note,
+:root[lang='te'] .preview-stats span,
+:root[lang='te'] .hero-stats span,
+:root[lang='te'] .preview-split span {
+  font-size: 0.82rem;
+}
+:root[lang='te'] .btn {
+  line-height: 1.35;
+}
+:root[lang='te'] .chart-tick {
+  font-size: 11.5px;
+}
+
+@media (max-width: 640px) {
+  .auth-lang {
+    top: 14px;
+    right: 16px;
+  }
+  .auth-panel {
+    padding-top: 64px;
+  }
+  .topbar-right {
+    gap: 8px;
+  }
+  .btn-logout {
+    padding: 8px 10px !important;
+  }
+  .logout-text {
+    display: none;
+  }
+  .logout-icon {
+    display: inline;
+  }
+  .lang-switch button {
+    min-width: 32px;
+    padding: 5px 8px;
+  }
+  /* Narrow name column: let the "got pot" tag wrap instead of cutting off the month number */
+  .received-tag {
+    white-space: normal;
+    line-height: 1.3;
+  }
+}
+
+@media (max-width: 400px) {
+  .user-chip {
+    display: none;
+  }
+}

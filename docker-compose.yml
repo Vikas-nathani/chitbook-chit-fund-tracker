@@ -1,0 +1,51 @@
+services:
+  app:
+    build: .
+    container_name: chitfund_app
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # Any HTTP response (even 401) means the server is up
+      test: ["CMD-SHELL", "[ \"$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/chit/auth/me)\" != \"000\" ]"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+
+  web:
+    build: ./frontend
+    container_name: chitfund_web
+    ports:
+      - "${WEB_PORT:-3500}:80"
+    restart: unless-stopped
+    depends_on:
+      - app
+
+  db:
+    image: mysql:8
+    container_name: chitfund_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    # Host port 3307 because a local MySQL already uses 3306
+    ports:
+      - "${DB_HOST_PORT:-3307}:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:
+    driver: local
