@@ -3,6 +3,7 @@ import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom';
 import { api, type Chit, type Payout } from '../api';
 import {
   avatarColor,
+  currentMonth,
   currentMonthIndex,
   formatNumber,
   formatRupees,
@@ -34,6 +35,12 @@ interface PayoutDraft {
   existing: boolean;
 }
 
+interface AddMemberDraft {
+  name: string;
+  shares: string;
+  startMonth: string;
+}
+
 export function ChitGrid() {
   const { id } = useParams();
   const chitId = Number(id);
@@ -52,6 +59,10 @@ export function ChitGrid() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [payoutDraft, setPayoutDraft] = useState<PayoutDraft | null>(null);
   const [payoutBusy, setPayoutBusy] = useState(false);
+  const [view, setView] = useState<'month' | 'table'>('month');
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [addMemberDraft, setAddMemberDraft] = useState<AddMemberDraft | null>(null);
+  const [addMemberBusy, setAddMemberBusy] = useState(false);
   const skipBlock = useRef(false);
 
   useEffect(() => {
@@ -75,7 +86,6 @@ export function ChitGrid() {
   };
 
   const invalidCells = Object.values(amountEdits).filter((text) => parseAmount(text) === null).length;
-  const totalValue = totalEdit === null ? chit?.totalAmount ?? 0 : Number(totalEdit);
   const totalInvalid = totalEdit !== null && !(Number(totalEdit) > 0);
   const totalChanged = totalEdit !== null && chit !== null && Number(totalEdit) !== chit.totalAmount;
   const commissionValue = commissionEdit === null ? chit?.commissionPercent ?? 0 : Number(commissionEdit);
@@ -110,7 +120,10 @@ export function ChitGrid() {
       let due = 0;
       let collected = 0;
       let paidCount = 0;
+      let memberCount = 0;
       chit.members.forEach((m, r) => {
+        if (m.startMonth > (chit.monthSummaries[i]?.calendarMonth ?? '')) return;
+        memberCount++;
         const v = cellValue(m.id, month);
         due += v;
         rowTotals[r] += v;
@@ -122,10 +135,11 @@ export function ChitGrid() {
       const payout = payoutByMonth.get(month) ?? null;
       return {
         month,
+        calendarMonth: chit.monthSummaries[i]?.calendarMonth ?? chit.startMonth,
         due: round2(due),
         collected: round2(collected),
         pending: round2(Math.max(due - collected, 0)),
-        allPaid: paidCount === chit.members.length,
+        allPaid: memberCount > 0 && paidCount === memberCount,
         payout,
         pnl: payout ? round2(collected - payout.amount) : null,
         isDue: chit.monthSummaries[i]?.isDue ?? false,
@@ -176,10 +190,9 @@ export function ChitGrid() {
     });
   }
 
-  function toggleMonth(month: number, allPaid: boolean) {
-    if (!chit) return;
+  function toggleMonth(month: number, allPaid: boolean, memberIds: number[]) {
     setPaid(
-      chit.members.map((m) => ({ memberId: m.id, month })),
+      memberIds.map((memberId) => ({ memberId, month })),
       !allPaid,
     );
   }
@@ -289,6 +302,35 @@ export function ChitGrid() {
     }
   }
 
+  function openAddMember() {
+    if (!chit) return;
+    const suggested = currentMonth() < chit.startMonth ? chit.startMonth : currentMonth();
+    setAddMemberDraft({ name: '', shares: '1', startMonth: suggested });
+  }
+
+  async function submitAddMember(e: FormEvent) {
+    e.preventDefault();
+    if (!chit || !addMemberDraft) return;
+    const name = addMemberDraft.name.trim();
+    if (!name) return toast(t('addMember.errName'), 'error');
+    const shares = Math.max(1, Math.round(Number(addMemberDraft.shares) || 1));
+    setAddMemberBusy(true);
+    try {
+      const updated = await api.addMember(chit.id, {
+        name,
+        shares,
+        startMonth: addMemberDraft.startMonth || undefined,
+      });
+      setChit(updated);
+      setAddMemberDraft(null);
+      toast(t('addMember.saved', { name }));
+    } catch (err) {
+      toast(tError((err as Error).message), 'error');
+    } finally {
+      setAddMemberBusy(false);
+    }
+  }
+
   if (loadError) {
     return (
       <div className="empty-state">
@@ -304,8 +346,15 @@ export function ChitGrid() {
   if (!chit || !money) return <div className="card skeleton skeleton-tall" />;
 
   const nowIndex = currentMonthIndex(chit.startMonth);
+  const clampedNowIndex = Math.min(Math.max(nowIndex, 1), chit.months);
+  const activeMonth = selectedMonth ?? clampedNowIndex;
+  const activeMonthData = money.months[activeMonth - 1];
   const commissionTarget = round2((chit.totalAmount * chit.commissionPercent) / 100);
   const receivedBy = new Map(chit.payouts.map((p) => [p.memberId, p.month]));
+  const activeMonthMembers = chit.members.filter((m) => m.startMonth <= activeMonthData.calendarMonth);
+
+  const escalationBump = chit.escalationEnabled ? round2((chit.totalAmount * chit.escalationPercent) / 100) : 0;
+  const payoutDraftMemberName = payoutDraft ? chit.members.find((m) => String(m.id) === payoutDraft.memberId)?.name : undefined;
 
   return (
     <div className="stack-lg">
@@ -322,7 +371,7 @@ export function ChitGrid() {
               {t('grid.subtitle', {
                 members: chit.members.length,
                 months: chit.months,
-                amount: formatRupees(round2(totalValue / chit.members.length)),
+                amount: formatRupees(chit.perShareAmount),
               })}
             </p>
           </div>
@@ -388,120 +437,231 @@ export function ChitGrid() {
             <h2>{t('grid.paymentsTitle')}</h2>
             <p className="muted small">{t('grid.paymentsHelp')}</p>
           </div>
-          <div className="grid-legend">
-            <span>
-              <i className="lg lg-paid">✓</i> {t('grid.paid')}
-            </span>
-            <span>
-              <i className="lg lg-pending" /> {t('grid.pending')}
-            </span>
-            <span>
-              <i className="lg lg-overdue">!</i> {t('grid.overdue')}
-            </span>
+          <div className="grid-head-actions">
+            <div className="view-toggle">
+              <button type="button" className={view === 'month' ? 'is-active' : ''} onClick={() => setView('month')}>
+                {t('grid.monthView')}
+              </button>
+              <button type="button" className={view === 'table' ? 'is-active' : ''} onClick={() => setView('table')}>
+                {t('grid.tableView')}
+              </button>
+            </div>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={openAddMember}>
+              {t('grid.addMember')}
+            </button>
           </div>
         </div>
 
-        <div className="table-scroll">
-          <table className="amount-table">
-            <thead>
-              <tr>
-                <th className="sticky-col">{t('grid.member')}</th>
-                {money.months.map((m) => {
-                  const label = monthLabel(chit.startMonth, m.month);
-                  return (
-                    <th key={m.month} className={m.month === nowIndex ? 'is-now' : ''}>
-                      <span className="month-num">{t('common.monthNum', { n: m.month })}</span>
-                      <span className="month-head">
-                        {label}
-                        <button
-                          type="button"
-                          className={`tick tick-sm ${m.allPaid ? 'is-paid' : ''}`}
-                          onClick={() => toggleMonth(m.month, m.allPaid)}
-                          title={m.allPaid ? t('grid.unmarkAll') : t('grid.markAll')}
-                          aria-label={m.allPaid ? t('grid.unmarkAllAria', { month: label }) : t('grid.markAllAria', { month: label })}
-                        >
-                          ✓
-                        </button>
-                      </span>
-                    </th>
-                  );
-                })}
-                <th className="total-col">{t('grid.total')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {chit.members.map((member, row) => (
-                <tr key={member.id}>
-                  <th className="sticky-col" scope="row">
-                    <div className="member-cell">
+        {view === 'month' ? (
+          <div className="month-view">
+            <div className="month-nav">
+              <button
+                type="button"
+                className="btn btn-icon btn-ghost"
+                onClick={() => setSelectedMonth(Math.max(1, activeMonth - 1))}
+                disabled={activeMonth <= 1}
+                aria-label={t('grid.prevMonth')}
+              >
+                ‹
+              </button>
+              <div className="month-nav-label">
+                <b>{monthLabel(chit.startMonth, activeMonth)}</b>
+                <span className="muted small">{t('common.monthNum', { n: activeMonth })}</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-icon btn-ghost"
+                onClick={() => setSelectedMonth(Math.min(chit.months, activeMonth + 1))}
+                disabled={activeMonth >= chit.months}
+                aria-label={t('grid.nextMonth')}
+              >
+                ›
+              </button>
+              {activeMonth !== clampedNowIndex && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelectedMonth(clampedNowIndex)}>
+                  {t('grid.jumpToToday')}
+                </button>
+              )}
+            </div>
+
+            <div className="month-summary-row">
+              <span>
+                {t('grid.collectedDue')}: <b>{formatRupees(activeMonthData.collected)}</b> {t('grid.ofAmount', { amount: formatRupees(activeMonthData.due) })}
+              </span>
+              {activeMonthMembers.length > 1 && (
+                <button
+                  type="button"
+                  className={`tick tick-sm ${activeMonthData.allPaid ? 'is-paid' : ''}`}
+                  onClick={() => toggleMonth(activeMonth, activeMonthData.allPaid, activeMonthMembers.map((m) => m.id))}
+                >
+                  ✓ {activeMonthData.allPaid ? t('grid.unmarkAll') : t('grid.markAll')}
+                </button>
+              )}
+            </div>
+
+            <div className="member-cards">
+              {activeMonthMembers.length === 0 && <p className="muted small month-empty">{t('grid.noMembersYet')}</p>}
+              {activeMonthMembers.map((member) => {
+                const key = cellKey(member.id, activeMonth);
+                const text = cellText(member.id, activeMonth);
+                const paid = cellPaid(member.id, activeMonth);
+                const invalid = key in amountEdits && parseAmount(text) === null;
+                const overdue = !paid && activeMonth < nowIndex && cellValue(member.id, activeMonth) > 0;
+                const state = paid ? 'is-paid' : overdue ? 'is-overdue' : '';
+                const status = paid ? t('grid.statusPaid') : overdue ? t('grid.statusOverdue') : t('grid.statusPending');
+                return (
+                  <div key={member.id} className={`member-card ${state} ${changedCells.has(key) ? 'is-dirty' : ''} ${invalid ? 'is-invalid' : ''}`}>
+                    <div className="member-card-id">
                       <span className="avatar avatar-sm" style={{ background: avatarColor(member.name) }}>
                         {initials(member.name)}
                       </span>
                       <span className="member-name" title={member.name}>
                         {member.name}
+                        {member.shares > 1 && <em className="shares-badge">×{member.shares}</em>}
                         {receivedBy.has(member.id) && (
                           <span className="received-tag">{t('grid.gotPot', { n: receivedBy.get(member.id)! })}</span>
                         )}
                       </span>
                     </div>
-                  </th>
-                  {money.months.map((m, i) => {
-                    const month = m.month;
-                    const key = cellKey(member.id, month);
-                    const text = cellText(member.id, month);
-                    const paid = cellPaid(member.id, month);
-                    const invalid = key in amountEdits && parseAmount(text) === null;
-                    const overdue = !paid && month < nowIndex && cellValue(member.id, month) > 0;
-                    const state = paid ? 'is-paid' : overdue ? 'is-overdue' : '';
-                    const label = monthLabel(chit.startMonth, month);
-                    const status = paid ? t('grid.statusPaid') : overdue ? t('grid.statusOverdue') : t('grid.statusPending');
+                    <input
+                      className="cell-input member-card-amount"
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      value={text}
+                      onChange={(e) => onCellChange(member.id, activeMonth, e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      onBlur={() => onCellBlur(key)}
+                      aria-label={t('grid.amountAria', { member: member.name, month: monthLabel(chit.startMonth, activeMonth) })}
+                    />
+                    <button
+                      type="button"
+                      className={`member-card-tick ${paid ? 'is-paid' : overdue ? 'is-overdue' : ''}`}
+                      onClick={() => setPaid([{ memberId: member.id, month: activeMonth }], !paid)}
+                      aria-pressed={paid}
+                      aria-label={t('grid.cellAria', { member: member.name, month: monthLabel(chit.startMonth, activeMonth), status })}
+                    >
+                      {paid ? `✓ ${t('grid.statusPaid')}` : overdue ? `! ${t('grid.statusOverdue')}` : t('grid.statusPending')}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="table-scroll">
+            <table className="amount-table">
+              <thead>
+                <tr>
+                  <th className="sticky-col">{t('grid.member')}</th>
+                  {money.months.map((m) => {
+                    const label = monthLabel(chit.startMonth, m.month);
+                    const memberIds = chit.members.filter((mm) => mm.startMonth <= m.calendarMonth).map((mm) => mm.id);
                     return (
-                      <td key={month} className={month === nowIndex ? 'is-now' : ''}>
-                        <div className={`cell ${state} ${changedCells.has(key) ? 'is-dirty' : ''} ${invalid ? 'is-invalid' : ''}`}>
-                          <button
-                            type="button"
-                            className={`tick ${paid ? 'is-paid' : ''}`}
-                            onClick={() => setPaid([{ memberId: member.id, month }], !paid)}
-                            aria-pressed={paid}
-                            aria-label={t('grid.cellAria', { member: member.name, month: label, status })}
-                          >
-                            {paid ? '✓' : overdue ? '!' : ''}
-                          </button>
-                          <input
-                            className="cell-input"
-                            type="text"
-                            inputMode="decimal"
-                            autoComplete="off"
-                            value={text}
-                            data-cell={`${row}-${i}`}
-                            onChange={(e) => onCellChange(member.id, month, e.target.value)}
-                            onKeyDown={(e) => onCellKeyDown(e, row, i)}
-                            onFocus={(e) => e.target.select()}
-                            onBlur={() => onCellBlur(key)}
-                            aria-label={t('grid.amountAria', { member: member.name, month: label })}
-                          />
-                        </div>
-                      </td>
+                      <th key={m.month} className={m.month === nowIndex ? 'is-now' : ''}>
+                        <span className="month-num">{t('common.monthNum', { n: m.month })}</span>
+                        <span className="month-head">
+                          {label}
+                          {memberIds.length > 0 && (
+                            <button
+                              type="button"
+                              className={`tick tick-sm ${m.allPaid ? 'is-paid' : ''}`}
+                              onClick={() => toggleMonth(m.month, m.allPaid, memberIds)}
+                              title={m.allPaid ? t('grid.unmarkAll') : t('grid.markAll')}
+                              aria-label={m.allPaid ? t('grid.unmarkAllAria', { month: label }) : t('grid.markAllAria', { month: label })}
+                            >
+                              ✓
+                            </button>
+                          )}
+                        </span>
+                      </th>
                     );
                   })}
-                  <td className="total-col">{formatNumber(money.rowTotals[row])}</td>
+                  <th className="total-col">{t('grid.total')}</th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <th className="sticky-col">{t('grid.collectedDue')}</th>
-                {money.months.map((m) => (
-                  <td key={m.month} className={m.month === nowIndex ? 'is-now' : ''}>
-                    <span className="foot-collected">{formatNumber(m.collected)}</span>
-                    <span className="foot-due">{t('grid.ofAmount', { amount: formatNumber(m.due) })}</span>
-                  </td>
+              </thead>
+              <tbody>
+                {chit.members.map((member, row) => (
+                  <tr key={member.id}>
+                    <th className="sticky-col" scope="row">
+                      <div className="member-cell">
+                        <span className="avatar avatar-sm" style={{ background: avatarColor(member.name) }}>
+                          {initials(member.name)}
+                        </span>
+                        <span className="member-name" title={member.name}>
+                          {member.name}
+                          {member.shares > 1 && <em className="shares-badge">×{member.shares}</em>}
+                          {receivedBy.has(member.id) && (
+                            <span className="received-tag">{t('grid.gotPot', { n: receivedBy.get(member.id)! })}</span>
+                          )}
+                        </span>
+                      </div>
+                    </th>
+                    {money.months.map((m, i) => {
+                      const month = m.month;
+                      if (member.startMonth > m.calendarMonth) {
+                        return (
+                          <td key={month} className={`cell-unjoined ${month === nowIndex ? 'is-now' : ''}`}>
+                            <span className="muted">—</span>
+                          </td>
+                        );
+                      }
+                      const key = cellKey(member.id, month);
+                      const text = cellText(member.id, month);
+                      const paid = cellPaid(member.id, month);
+                      const invalid = key in amountEdits && parseAmount(text) === null;
+                      const overdue = !paid && month < nowIndex && cellValue(member.id, month) > 0;
+                      const state = paid ? 'is-paid' : overdue ? 'is-overdue' : '';
+                      const label = monthLabel(chit.startMonth, month);
+                      const status = paid ? t('grid.statusPaid') : overdue ? t('grid.statusOverdue') : t('grid.statusPending');
+                      return (
+                        <td key={month} className={month === nowIndex ? 'is-now' : ''}>
+                          <div className={`cell ${state} ${changedCells.has(key) ? 'is-dirty' : ''} ${invalid ? 'is-invalid' : ''}`}>
+                            <button
+                              type="button"
+                              className={`tick ${paid ? 'is-paid' : ''}`}
+                              onClick={() => setPaid([{ memberId: member.id, month }], !paid)}
+                              aria-pressed={paid}
+                              aria-label={t('grid.cellAria', { member: member.name, month: label, status })}
+                            >
+                              {paid ? '✓' : overdue ? '!' : ''}
+                            </button>
+                            <input
+                              className="cell-input"
+                              type="text"
+                              inputMode="decimal"
+                              autoComplete="off"
+                              value={text}
+                              data-cell={`${row}-${i}`}
+                              onChange={(e) => onCellChange(member.id, month, e.target.value)}
+                              onKeyDown={(e) => onCellKeyDown(e, row, i)}
+                              onFocus={(e) => e.target.select()}
+                              onBlur={() => onCellBlur(key)}
+                              aria-label={t('grid.amountAria', { member: member.name, month: label })}
+                            />
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td className="total-col">{formatNumber(money.rowTotals[row])}</td>
+                  </tr>
                 ))}
-                <td className="total-col grand">{formatNumber(money.grand)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th className="sticky-col">{t('grid.collectedDue')}</th>
+                  {money.months.map((m) => (
+                    <td key={m.month} className={m.month === nowIndex ? 'is-now' : ''}>
+                      <span className="foot-collected">{formatNumber(m.collected)}</span>
+                      <span className="foot-due">{t('grid.ofAmount', { amount: formatNumber(m.due) })}</span>
+                    </td>
+                  ))}
+                  <td className="total-col grand">{formatNumber(money.grand)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="card grid-card">
@@ -678,6 +838,11 @@ export function ChitGrid() {
                 </p>
               );
             })()}
+            {chit.escalationEnabled && payoutDraftMemberName && escalationBump > 0 && (
+              <p className="payout-preview escalation-preview">
+                {t('payout.escalationPreview', { member: payoutDraftMemberName, amount: formatRupees(escalationBump) })}
+              </p>
+            )}
             <div className="modal-actions">
               {payoutDraft.existing && (
                 <button type="button" className="btn btn-danger-ghost" onClick={removePayout} disabled={payoutBusy}>
@@ -689,6 +854,61 @@ export function ChitGrid() {
               </button>
               <button type="submit" className="btn btn-primary" data-action="save-payout" disabled={payoutBusy}>
                 {payoutBusy ? t('common.saving') : t('payout.save')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {addMemberDraft && (
+        <div className="modal-backdrop" onClick={() => !addMemberBusy && setAddMemberDraft(null)}>
+          <form
+            className="modal modal-form"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={submitAddMember}
+            noValidate
+          >
+            <div className="modal-icon payout">+</div>
+            <h3>{t('addMember.title')}</h3>
+            <label className="field">
+              <span>{t('newChit.memberNamePh')}</span>
+              <input
+                autoFocus
+                value={addMemberDraft.name}
+                onChange={(e) => setAddMemberDraft({ ...addMemberDraft, name: e.target.value })}
+                maxLength={100}
+              />
+            </label>
+            <div className="form-row">
+              <label className="field">
+                <span>{t('newChit.shares')}</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputMode="numeric"
+                  value={addMemberDraft.shares}
+                  onChange={(e) => setAddMemberDraft({ ...addMemberDraft, shares: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>{t('newChit.joinsFrom')}</span>
+                <input
+                  type="month"
+                  value={addMemberDraft.startMonth}
+                  min={chit.startMonth}
+                  onChange={(e) => setAddMemberDraft({ ...addMemberDraft, startMonth: e.target.value })}
+                />
+              </label>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setAddMemberDraft(null)} disabled={addMemberBusy}>
+                {t('common.cancel')}
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={addMemberBusy}>
+                {addMemberBusy ? t('common.saving') : t('addMember.save')}
               </button>
             </div>
           </form>

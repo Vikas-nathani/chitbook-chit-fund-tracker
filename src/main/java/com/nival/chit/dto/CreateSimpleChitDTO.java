@@ -18,7 +18,24 @@ public class CreateSimpleChitDTO {
     private Integer months;
     /** Optional, {@code yyyy-MM}. Defaults to the current month. */
     private String startMonth;
-    private List<String> memberNames;
+    /** Optional. Defaults to totalAmount / months. The one common monthly slot amount for every member. */
+    private Double perShareAmount;
+    private List<MemberInput> members;
     /** Optional owner commission percent (0-20). Defaults to 5. */
     private Double commissionPercent;
+    /** Optional. Defaults to false. */
+    private Boolean escalationEnabled;
+    /** Optional. Defaults to 1 when escalationEnabled is true. */
+    private Double escalationPercent;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class MemberInput {
+        private String name;
+        /** Optional, defaults to 1. How many chit slots this member holds. */
+        private Integer shares;
+        /** Optional, {@code yyyy-MM}. Defaults to the chit's own startMonth. */
+        private String startMonth;
+    }
 }

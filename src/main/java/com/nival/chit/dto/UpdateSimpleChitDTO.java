@@ -17,6 +17,12 @@ public class UpdateSimpleChitDTO {
     private Double totalAmount;
     /** Optional new owner commission percent (0-20). */
     private Double commissionPercent;
+    /** Optional new common per-share amount. Only affects members added afterward; existing cells are not recomputed. */
+    private Double perShareAmount;
+    /** Optional. Toggling only affects payouts recorded from then on. */
+    private Boolean escalationEnabled;
+    /** Optional. */
+    private Double escalationPercent;
     /** Optional cell changes. */
     private List<Entry> entries;
 

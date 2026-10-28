@@ -23,6 +23,9 @@ public class SimpleChitDTO {
     private Integer months;
     private String startMonth;
     private Double commissionPercent;
+    private Double perShareAmount;
+    private Boolean escalationEnabled;
+    private Double escalationPercent;
     private List<Member> members;
     private List<Payout> payouts;
     /** Computed money summary for each month, index i = month i + 1. */
@@ -40,6 +43,9 @@ public class SimpleChitDTO {
     public static class Member {
         private Long id;
         private String name;
+        private Integer shares;
+        /** Calendar month, {@code yyyy-MM}, this member's entries start at. */
+        private String startMonth;
         private List<Double> amounts;
         private List<Boolean> paid;
     }

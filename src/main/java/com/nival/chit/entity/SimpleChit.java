@@ -51,6 +51,20 @@ public class SimpleChit {
     @Column(name = "start_month", nullable = false, length = 7)
     private String startMonth;
 
+    /** The one common monthly slot amount for this chit; a member's entry = this times their shares. */
+    @Column(name = "per_share_amount", nullable = false)
+    private double perShareAmount;
+
+    /** Whether a member's remaining months go up after they take a payout. */
+    @Column(name = "escalation_enabled", nullable = false)
+    @ColumnDefault("false")
+    private boolean escalationEnabled = false;
+
+    /** Percent of totalAmount added to the taking member's remaining months, when escalation is enabled. */
+    @Column(name = "escalation_percent", nullable = false)
+    @ColumnDefault("1")
+    private double escalationPercent = 1;
+
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;

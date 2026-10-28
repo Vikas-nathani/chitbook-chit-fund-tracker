@@ -1,5 +1,6 @@
 package com.nival.chit.controllers;
 
+import com.nival.chit.dto.AddSimpleChitMemberDTO;
 import com.nival.chit.dto.CreateSimpleChitDTO;
 import com.nival.chit.dto.SavePayoutDTO;
 import com.nival.chit.dto.SimpleChitDTO;
@@ -64,6 +65,16 @@ public class SimpleChitController {
     })
     public ResponseEntity<SimpleChitDTO> create(@RequestBody CreateSimpleChitDTO createDTO) {
         return ResponseEntity.status(HttpStatus.CREATED).body(simpleChitService.create(createDTO));
+    }
+
+    @PostMapping("/{chitId}/members")
+    @Operation(
+        summary = "Add a member",
+        description = "Adds a new member to an existing chit. Their entries start at their own start month " +
+                     "(default: the current month) and run through the chit's last month."
+    )
+    public ResponseEntity<SimpleChitDTO> addMember(@PathVariable Long chitId, @RequestBody AddSimpleChitMemberDTO memberDTO) {
+        return ResponseEntity.ok(simpleChitService.addMember(chitId, memberDTO));
     }
 
     @PutMapping("/{chitId}/payouts/{month}")

@@ -237,6 +237,156 @@ a.stat-tile:hover {
   font-weight: 600;
   color: var(--muted);
 }
+.cell-unjoined {
+  background: #faf9ff;
+  color: #c7c2ee;
+}
+
+/* ----- Grid head actions + view toggle ----- */
+.grid-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.view-toggle {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: #f0eef9;
+}
+.view-toggle button {
+  border: 0;
+  background: transparent;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.view-toggle button.is-active {
+  background: #fff;
+  color: var(--primary-2);
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.18);
+}
+
+/* ----- Month-by-month card view ----- */
+.month-view {
+  padding: 20px 24px 24px;
+}
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.month-nav-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 110px;
+  text-align: center;
+}
+.month-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+.month-empty {
+  text-align: center;
+  padding: 24px 0;
+}
+.member-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.member-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--line);
+  background: #fff;
+}
+.member-card.is-paid {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+.member-card.is-overdue {
+  background: #fff5f6;
+  border-color: #fecdd3;
+}
+.member-card.is-dirty {
+  border-color: #fbbf24;
+}
+.member-card.is-invalid {
+  border-color: var(--danger);
+}
+.member-card-id {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.member-card-id .member-name {
+  max-width: none;
+}
+.member-card-amount {
+  width: 100px;
+  flex-shrink: 0;
+}
+.member-card-tick {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  min-height: 44px;
+  border-radius: 999px;
+  border: 1.5px solid #c7c2ee;
+  background: #fff;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.member-card-tick.is-paid {
+  background: #0d9488;
+  border-color: #0d9488;
+  color: #fff;
+}
+.member-card-tick.is-overdue {
+  border-color: #e11d48;
+  color: #be123c;
+}
+.escalation-preview {
+  color: var(--primary-2);
+}
+
+@media (max-width: 640px) {
+  .month-view {
+    padding: 16px;
+  }
+  .member-card {
+    flex-wrap: wrap;
+  }
+  .member-card-id {
+    width: 100%;
+  }
+  .member-card-amount {
+    width: 100px;
+  }
+}
 
 /* ----- Generic data tables ----- */
 .data-table {

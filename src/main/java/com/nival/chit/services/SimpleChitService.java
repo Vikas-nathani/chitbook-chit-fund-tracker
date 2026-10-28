@@ -1,5 +1,6 @@
 package com.nival.chit.services;
 
+import com.nival.chit.dto.AddSimpleChitMemberDTO;
 import com.nival.chit.dto.CreateSimpleChitDTO;
 import com.nival.chit.dto.SavePayoutDTO;
 import com.nival.chit.dto.SimpleChitDTO;
@@ -24,6 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -47,12 +49,14 @@ public class SimpleChitService {
     private static final int MAX_NAME_LENGTH = 100;
     private static final double DEFAULT_COMMISSION_PERCENT = 5;
     private static final double MAX_COMMISSION_PERCENT = 20;
+    private static final double DEFAULT_ESCALATION_PERCENT = 1;
 
     private final SimpleChitRepository simpleChitRepository;
     private final AccessControlService accessControlService;
 
     /**
-     * Create a chit and prefill every cell (as pending) with {@code totalAmount / memberCount}.
+     * Create a chit. Every member's monthly entry = chit.perShareAmount * member.shares,
+     * generated only from that member's startMonth through the chit's last month.
      */
     @Transactional
     public SimpleChitDTO create(CreateSimpleChitDTO dto) {
@@ -64,47 +68,92 @@ public class SimpleChitService {
         if (months < 1 || months > MAX_MONTHS) {
             throw new IllegalArgumentException("Months must be between 1 and " + MAX_MONTHS);
         }
-        List<String> memberNames = dto.getMemberNames() == null ? List.of() : dto.getMemberNames().stream()
-                .map(n -> n == null ? "" : n.trim())
-                .filter(n -> !n.isEmpty())
-                .toList();
-        if (memberNames.isEmpty() || memberNames.size() > MAX_MEMBERS) {
-            throw new IllegalArgumentException("Add between 1 and " + MAX_MEMBERS + " member names");
-        }
-        memberNames.forEach(n -> requireName(n, "Member name"));
+        YearMonth startMonth = parseStartMonth(dto.getStartMonth());
 
-        double installment = BigDecimal.valueOf(totalAmount)
-                .divide(BigDecimal.valueOf(memberNames.size()), 2, RoundingMode.HALF_UP)
-                .doubleValue();
+        double perShareAmount = dto.getPerShareAmount() != null
+                ? requirePositive(dto.getPerShareAmount(), "Amount per share")
+                : BigDecimal.valueOf(totalAmount).divide(BigDecimal.valueOf(months), 2, RoundingMode.HALF_UP).doubleValue();
+
+        List<CreateSimpleChitDTO.MemberInput> memberInputs = dto.getMembers() == null ? List.of() : dto.getMembers().stream()
+                .filter(m -> m != null && m.getName() != null && !m.getName().trim().isEmpty())
+                .toList();
+        if (memberInputs.isEmpty() || memberInputs.size() > MAX_MEMBERS) {
+            throw new IllegalArgumentException("Add between 1 and " + MAX_MEMBERS + " members");
+        }
+
+        boolean escalationEnabled = Boolean.TRUE.equals(dto.getEscalationEnabled());
+        double escalationPercent = dto.getEscalationPercent() == null
+                ? DEFAULT_ESCALATION_PERCENT
+                : requirePercent(dto.getEscalationPercent(), "Escalation percent");
 
         SimpleChit chit = new SimpleChit();
         chit.setName(name);
         chit.setTotalAmount(totalAmount);
         chit.setMonths(months);
-        chit.setStartMonth(parseStartMonth(dto.getStartMonth()).toString());
+        chit.setStartMonth(startMonth.toString());
+        chit.setPerShareAmount(perShareAmount);
         chit.setCommissionPercent(dto.getCommissionPercent() == null
                 ? DEFAULT_COMMISSION_PERCENT
                 : requireCommission(dto.getCommissionPercent()));
+        chit.setEscalationEnabled(escalationEnabled);
+        chit.setEscalationPercent(escalationPercent);
         chit.setOwner(owner);
 
-        for (int i = 0; i < memberNames.size(); i++) {
-            SimpleChitMember member = new SimpleChitMember();
-            member.setChit(chit);
-            member.setName(memberNames.get(i));
-            member.setPosition(i);
-            for (int month = 1; month <= months; month++) {
-                SimpleChitEntry entry = new SimpleChitEntry();
-                entry.setMember(member);
-                entry.setMonthIndex(month);
-                entry.setAmount(installment);
-                member.getEntries().add(entry);
-            }
-            chit.getMembers().add(member);
+        for (int i = 0; i < memberInputs.size(); i++) {
+            CreateSimpleChitDTO.MemberInput input = memberInputs.get(i);
+            String memberName = requireName(input.getName(), "Member name");
+            int shares = requireShares(input.getShares());
+            int startMonthIndex = resolveStartMonthIndex(startMonth, input.getStartMonth(), months, startMonth);
+            addMemberToChit(chit, memberName, shares, startMonthIndex, i);
         }
 
         chit = simpleChitRepository.save(chit);
         log.info("Simple chit {} created by {}", chit.getId(), owner.getUsername());
         return toDTO(chit);
+    }
+
+    /**
+     * Add a new member to an already-created chit. Their entries start at their own
+     * start month (default: the current calendar month, clamped into the chit's range)
+     * and run through the chit's last month.
+     */
+    @Transactional
+    public SimpleChitDTO addMember(Long chitId, AddSimpleChitMemberDTO dto) {
+        SimpleChit chit = requireOwned(chitId);
+        String name = requireName(dto.getName(), "Member name");
+        int shares = requireShares(dto.getShares());
+        YearMonth chitStart = YearMonth.parse(chit.getStartMonth());
+        YearMonth fallback = clampToChitRange(YearMonth.now(), chitStart, chit.getMonths());
+        int startMonthIndex = resolveStartMonthIndex(chitStart, dto.getStartMonth(), chit.getMonths(), fallback);
+        int position = chit.getMembers().stream().mapToInt(SimpleChitMember::getPosition).max().orElse(-1) + 1;
+
+        addMemberToChit(chit, name, shares, startMonthIndex, position);
+
+        chit = simpleChitRepository.saveAndFlush(chit);
+        log.info("Member added to simple chit {}", chitId);
+        return toDTO(chit);
+    }
+
+    private static void addMemberToChit(SimpleChit chit, String name, int shares, int startMonthIndex, int position) {
+        SimpleChitMember member = new SimpleChitMember();
+        member.setChit(chit);
+        member.setName(name);
+        member.setPosition(position);
+        member.setShares(shares);
+        member.setStartMonthIndex(startMonthIndex);
+
+        double amount = BigDecimal.valueOf(chit.getPerShareAmount())
+                .multiply(BigDecimal.valueOf(shares))
+                .setScale(2, RoundingMode.HALF_UP)
+                .doubleValue();
+        for (int month = startMonthIndex; month <= chit.getMonths(); month++) {
+            SimpleChitEntry entry = new SimpleChitEntry();
+            entry.setMember(member);
+            entry.setMonthIndex(month);
+            entry.setAmount(amount);
+            member.getEntries().add(entry);
+        }
+        chit.getMembers().add(member);
     }
 
     @Transactional(readOnly = true)
@@ -128,8 +177,8 @@ public class SimpleChitService {
     }
 
     /**
-     * Update the total amount, commission, and/or individual cells (amount and paid status).
-     * Names and months are fixed.
+     * Update the total amount, commission, per-share amount, escalation settings, and/or
+     * individual cells (amount and paid status). Names, shares, and months are fixed.
      */
     @Transactional
     public SimpleChitDTO update(Long chitId, UpdateSimpleChitDTO dto) {
@@ -140,6 +189,15 @@ public class SimpleChitService {
         }
         if (dto.getCommissionPercent() != null) {
             chit.setCommissionPercent(requireCommission(dto.getCommissionPercent()));
+        }
+        if (dto.getPerShareAmount() != null) {
+            chit.setPerShareAmount(requirePositive(dto.getPerShareAmount(), "Amount per share"));
+        }
+        if (dto.getEscalationEnabled() != null) {
+            chit.setEscalationEnabled(dto.getEscalationEnabled());
+        }
+        if (dto.getEscalationPercent() != null) {
+            chit.setEscalationPercent(requirePercent(dto.getEscalationPercent(), "Escalation percent"));
         }
 
         if (dto.getEntries() != null && !dto.getEntries().isEmpty()) {
@@ -180,6 +238,8 @@ public class SimpleChitService {
 
     /**
      * Record (or replace) who received the given month's pot and how much was paid out.
+     * When escalation is enabled, the taking member's entries after this month go up by
+     * totalAmount * escalationPercent / 100; replacing a payout reverses the old bump first.
      */
     @Transactional
     public SimpleChitDTO savePayout(Long chitId, Integer monthParam, SavePayoutDTO dto) {
@@ -191,16 +251,30 @@ public class SimpleChitService {
         SimpleChitPayout payout = chit.getPayouts().stream()
                 .filter(p -> p.getMonthIndex() == month)
                 .findFirst()
-                .orElseGet(() -> {
-                    SimpleChitPayout created = new SimpleChitPayout();
-                    created.setChit(chit);
-                    created.setMonthIndex(month);
-                    chit.getPayouts().add(created);
-                    return created;
-                });
+                .orElse(null);
+
+        if (payout != null && payout.getEscalationApplied() != 0) {
+            adjustFutureEntries(payout.getMember(), month, -payout.getEscalationApplied());
+        }
+        if (payout == null) {
+            payout = new SimpleChitPayout();
+            payout.setChit(chit);
+            payout.setMonthIndex(month);
+            chit.getPayouts().add(payout);
+        }
         payout.setMember(member);
         payout.setAmount(amount);
         payout.setPaidOn(dto.getPaidOn() == null ? LocalDate.now() : dto.getPaidOn());
+
+        double bump = 0;
+        if (chit.isEscalationEnabled()) {
+            bump = BigDecimal.valueOf(chit.getTotalAmount())
+                    .multiply(BigDecimal.valueOf(chit.getEscalationPercent()))
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                    .doubleValue();
+            adjustFutureEntries(member, month, bump);
+        }
+        payout.setEscalationApplied(bump);
 
         log.info("Payout recorded for chit {} month {}", chitId, month);
         return toDTO(simpleChitRepository.saveAndFlush(chit));
@@ -210,11 +284,28 @@ public class SimpleChitService {
     public SimpleChitDTO deletePayout(Long chitId, Integer monthParam) {
         SimpleChit chit = requireOwned(chitId);
         int month = requireMonth(chit, monthParam);
-        boolean removed = chit.getPayouts().removeIf(p -> p.getMonthIndex() == month);
-        if (!removed) {
-            throw new IllegalArgumentException("No payout recorded for month " + month);
+        SimpleChitPayout payout = chit.getPayouts().stream()
+                .filter(p -> p.getMonthIndex() == month)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No payout recorded for month " + month));
+
+        if (payout.getEscalationApplied() != 0) {
+            adjustFutureEntries(payout.getMember(), month, -payout.getEscalationApplied());
         }
+        chit.getPayouts().remove(payout);
         return toDTO(simpleChitRepository.saveAndFlush(chit));
+    }
+
+    /** Adds {@code delta} (negative to reverse) to a member's entries after {@code afterMonth}. */
+    private static void adjustFutureEntries(SimpleChitMember member, int afterMonth, double delta) {
+        if (delta == 0) {
+            return;
+        }
+        for (SimpleChitEntry entry : member.getEntries()) {
+            if (entry.getMonthIndex() > afterMonth) {
+                entry.setAmount(entry.getAmount() + delta);
+            }
+        }
     }
 
     @Transactional
@@ -279,10 +370,29 @@ public class SimpleChitService {
         return percent;
     }
 
+    private static double requirePercent(Double percent, String label) {
+        if (percent == null || percent.isNaN() || percent < 0 || percent > 100) {
+            throw new IllegalArgumentException(label + " must be between 0 and 100");
+        }
+        return percent;
+    }
+
+    private static int requireShares(Integer shares) {
+        int value = shares == null ? 1 : shares;
+        if (value < 1) {
+            throw new IllegalArgumentException("Shares must be at least 1");
+        }
+        return value;
+    }
+
     private static YearMonth parseStartMonth(String value) {
         if (value == null || value.isBlank()) {
             return YearMonth.now();
         }
+        return parseYearMonth(value);
+    }
+
+    private static YearMonth parseYearMonth(String value) {
         try {
             return YearMonth.parse(value.trim());
         } catch (DateTimeParseException e) {
@@ -290,7 +400,29 @@ public class SimpleChitService {
         }
     }
 
+    /** Resolves a member's start month to a 1-based month index within [1, months]. */
+    private static int resolveStartMonthIndex(YearMonth chitStart, String startMonthStr, int months, YearMonth fallback) {
+        YearMonth target = (startMonthStr == null || startMonthStr.isBlank()) ? fallback : parseYearMonth(startMonthStr);
+        int index = (int) chitStart.until(target, ChronoUnit.MONTHS) + 1;
+        if (index < 1 || index > months) {
+            throw new IllegalArgumentException("Start month must fall within the chit's " + months + " months");
+        }
+        return index;
+    }
+
+    private static YearMonth clampToChitRange(YearMonth value, YearMonth chitStart, int months) {
+        YearMonth last = chitStart.plusMonths(months - 1L);
+        if (value.isBefore(chitStart)) {
+            return chitStart;
+        }
+        if (value.isAfter(last)) {
+            return last;
+        }
+        return value;
+    }
+
     private SimpleChitDTO toDTO(SimpleChit chit) {
+        YearMonth chitStart = YearMonth.parse(chit.getStartMonth());
         List<SimpleChitDTO.Member> members = chit.getMembers().stream()
                 .map(member -> {
                     Double[] amounts = new Double[chit.getMonths()];
@@ -305,6 +437,8 @@ public class SimpleChitService {
                     return SimpleChitDTO.Member.builder()
                             .id(member.getId())
                             .name(member.getName())
+                            .shares(member.getShares())
+                            .startMonth(chitStart.plusMonths(member.getStartMonthIndex() - 1L).toString())
                             .amounts(Arrays.asList(amounts))
                             .paid(Arrays.asList(paid))
                             .build();
@@ -341,6 +475,9 @@ public class SimpleChitService {
                 .months(chit.getMonths())
                 .startMonth(chit.getStartMonth())
                 .commissionPercent(chit.getCommissionPercent())
+                .perShareAmount(chit.getPerShareAmount())
+                .escalationEnabled(chit.isEscalationEnabled())
+                .escalationPercent(chit.getEscalationPercent())
                 .members(members)
                 .payouts(payouts)
                 .monthSummaries(monthSummaries)

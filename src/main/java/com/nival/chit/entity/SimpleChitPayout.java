@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDate;
 
@@ -42,4 +43,9 @@ public class SimpleChitPayout {
 
     @Column(name = "paid_on", nullable = false)
     private LocalDate paidOn;
+
+    /** Amount added to the member's entries after monthIndex, for exact reversal on delete/replace. */
+    @Column(name = "escalation_applied", nullable = false)
+    @ColumnDefault("0")
+    private double escalationApplied = 0;
 }

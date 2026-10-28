@@ -38,6 +38,8 @@ export interface ChitSummary {
 export interface ChitMember {
   id: number;
   name: string;
+  shares: number;
+  startMonth: string; // yyyy-MM, first month this member has an entry
   amounts: (number | null)[]; // index i = month i + 1
   paid: boolean[];
 }
@@ -68,6 +70,9 @@ export interface Chit {
   months: number;
   startMonth: string;
   commissionPercent: number;
+  perShareAmount: number;
+  escalationEnabled: boolean;
+  escalationPercent: number;
   members: ChitMember[];
   payouts: Payout[];
   monthSummaries: MonthSummary[];
@@ -75,18 +80,36 @@ export interface Chit {
   updatedAt: string;
 }
 
+export interface CreateChitMemberInput {
+  name: string;
+  shares: number;
+  startMonth?: string; // yyyy-MM, defaults to the chit's own startMonth
+}
+
 export interface CreateChitInput {
   name: string;
   totalAmount: number;
   months: number;
   startMonth: string;
-  memberNames: string[];
+  perShareAmount?: number; // defaults to totalAmount / months when omitted
+  members: CreateChitMemberInput[];
   commissionPercent: number;
+  escalationEnabled?: boolean;
+  escalationPercent?: number;
+}
+
+export interface AddMemberInput {
+  name: string;
+  shares: number;
+  startMonth?: string;
 }
 
 export interface UpdateChitInput {
   totalAmount?: number;
   commissionPercent?: number;
+  perShareAmount?: number;
+  escalationEnabled?: boolean;
+  escalationPercent?: number;
   entries?: { memberId: number; month: number; amount?: number; paid?: boolean }[];
 }
 
@@ -131,6 +154,8 @@ export interface SignupInput {
   phone?: number;
   password: string;
 }
+
+const API_BASE: string = import.meta.env.VITE_API_BASE_URL ?? '';
 
 const SESSION_KEY = 'chitbook.session';
 
@@ -179,7 +204,7 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string):
 
   let res: Response;
   try {
-    res = await fetch(path, { ...init, headers });
+    res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   } catch {
     throw new ApiError(0, 'Cannot reach the server. Is the backend running?');
   }
@@ -228,6 +253,10 @@ export const api = {
 
   createChit(input: CreateChitInput) {
     return request<Chit>('/api/chit/simple-chits', { method: 'POST', body: JSON.stringify(input) });
+  },
+
+  addMember(id: number, input: AddMemberInput) {
+    return request<Chit>(`/api/chit/simple-chits/${id}/members`, { method: 'POST', body: JSON.stringify(input) });
   },
 
   updateChit(id: number, input: UpdateChitInput) {

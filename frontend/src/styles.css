@@ -179,6 +179,24 @@ a {
   font-size: 1.2rem;
   line-height: 1;
 }
+.btn-secondary {
+  color: var(--primary-2);
+  background: rgba(124, 58, 237, 0.1);
+  border: 1.5px solid rgba(124, 58, 237, 0.25);
+}
+.btn-secondary:hover {
+  background: rgba(124, 58, 237, 0.16);
+}
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 0.85rem;
+}
+.btn-icon {
+  padding: 8px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
 
 /* ===== Forms ===== */
 .form {
@@ -808,6 +826,88 @@ textarea:focus {
   font-size: 0.85rem;
   opacity: 0.75;
   font-style: italic;
+}
+.preview-warn {
+  color: #fde68a;
+  font-weight: 600;
+}
+.shares-badge {
+  font-style: normal;
+  font-weight: 800;
+  color: var(--primary-2);
+  margin-left: 2px;
+}
+
+/* ===== Member rows (new chit form) ===== */
+.member-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.member-row {
+  display: grid;
+  grid-template-columns: 2fr 0.9fr 1.1fr auto;
+  gap: 10px;
+  align-items: end;
+  padding: 10px;
+  background: #fbfaff;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.member-row-name {
+  width: 100%;
+}
+.member-row-shares,
+.member-row-start {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.member-row-shares span,
+.member-row-start span {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+.checkbox-row input {
+  width: auto;
+}
+.escalation-field {
+  gap: 12px;
+  padding: 14px;
+  background: #fbfaff;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 640px) {
+  .member-row {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: 'name name' 'shares start' 'remove remove';
+  }
+  .member-row-name {
+    grid-area: name;
+  }
+  .member-row-shares {
+    grid-area: shares;
+  }
+  .member-row-start {
+    grid-area: start;
+  }
+  .member-row .btn-icon {
+    grid-area: remove;
+    width: 100%;
+  }
 }
 
 /* ===== Grid page ===== */
