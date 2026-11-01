@@ -6,7 +6,7 @@ server {
 
     # Docker's DNS; re-resolve "app" so a recreated backend container (new IP) keeps working
     resolver 127.0.0.11 valid=10s ipv6=off;
-    set $backend http://app:8080;
+    set $backend http://${BACKEND_HOST}:${BACKEND_PORT};
 
     # API calls go to the Spring Boot container, so the UI and API share one origin (no CORS)
     location /api/ {

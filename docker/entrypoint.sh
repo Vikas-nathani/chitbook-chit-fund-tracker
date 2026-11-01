@@ -22,8 +22,9 @@ wait_for() {
 }
 
 
-DB_HOST=${DB_HOST:-db}
-DB_PORT=${DB_PORT:-3306}
+: "${DB_HOST:?DB_HOST must be set}"
+: "${DB_PORT:?DB_PORT must be set}"
+: "${TZ:?TZ must be set}"
 
 echo "[entrypoint] Using DB at ${DB_HOST}:${DB_PORT}"
 
@@ -33,4 +34,4 @@ if [ -n "$DB_HOST" ]; then
 fi
 
 echo "[entrypoint] starting application"
-exec java $JAVA_OPTS -jar /app/app.jar
+exec java $JAVA_OPTS -Duser.timezone="$TZ" -jar /app/app.jar

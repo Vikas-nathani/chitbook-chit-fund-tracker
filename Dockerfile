@@ -37,16 +37,14 @@ RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh && chown 
 
 ## Install minimal runtime dependencies (curl for healthcheck)
 USER root
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl tzdata && rm -rf /var/lib/apt/lists/*
 
 USER appuser
-EXPOSE 8080
 
-ENV JAVA_OPTS="-Xms256m -Xmx512m"
-ENV SPRING_PROFILES_ACTIVE=default
+# JAVA_OPTS, SPRING_PROFILES_ACTIVE, TZ, SERVER_PORT etc. are supplied at runtime from .env
 
 # Simple healthcheck: any HTTP response (even 401) means the server is up
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-	CMD [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/chit/auth/me)" != "000" ] || exit 1
+	CMD [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:${SERVER_PORT}/api/chit/auth/me)" != "000" ] || exit 1
 
 ENTRYPOINT ["/app/entrypoint.sh"]
