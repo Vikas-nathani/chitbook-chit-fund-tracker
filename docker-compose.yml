@@ -1,60 +1,51 @@
+# ChitBook stack. Every value comes from .env (no defaults here).
+#   api  - FastAPI backend          -> host port ${API_PORT}
+#   web  - Expo web build + nginx   -> host port ${WEB_PORT} (proxies /api to the api service)
+#   database: the host's Postgres on ${DB_PORT}, reached via host.docker.internal
+#             (allowed for ${DOCKER_SUBNET} in pg_hba.conf by scripts/setup-db.sh)
+
 services:
-  app:
-    build: .
-    container_name: chitfund_app
-    ports:
-      - "${APP_PORT}:${SERVER_PORT}"
+  api:
+    build: ./apps/api
+    container_name: chitbook_api
     env_file: .env
-    environment:
-      # Built from the individual .env values so host/port/db/timezone are never repeated
-      SPRING_DATASOURCE_URL: jdbc:mysql://${DB_HOST}:${DB_PORT}/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=${TZ}
+    ports:
+      - "${API_PORT}:${API_PORT}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Logs are JSON lines on stdout: docker compose logs -f api
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE}
+        max-file: ${LOG_MAX_FILES}
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      # Any HTTP response (even 401) means the server is up
-      test: ["CMD-SHELL", "[ \"$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:$${SERVER_PORT}/api/chit/auth/me)\" != \"000\" ]"]
-      interval: 15s
-      timeout: 5s
-      start_period: 60s
-      retries: 5
+    networks:
+      - chitbook
 
   web:
-    build: ./frontend
-    container_name: chitfund_web
+    build:
+      context: .
+      dockerfile: apps/mobile/Dockerfile
+      args:
+        EXPO_PUBLIC_API_BASE_URL: ""
+    container_name: chitbook_web
+    environment:
+      TZ: ${TZ}
+      API_UPSTREAM: ${API_UPSTREAM}
+      API_PORT: ${API_PORT}
     ports:
       - "${WEB_PORT}:80"
-    environment:
-      TZ: ${TZ}
-      BACKEND_HOST: ${BACKEND_HOST}
-      BACKEND_PORT: ${BACKEND_PORT}
-    restart: unless-stopped
     depends_on:
-      - app
-
-  db:
-    image: mysql:8
-    container_name: chitfund_db
+      api:
+        condition: service_healthy
     restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      TZ: ${TZ}
-    # MySQL server timezone (offset form: named zones aren't loaded during first init)
-    command: --default-time-zone=${DB_TIMEZONE_OFFSET}
-    ports:
-      - "${DB_HOST_PORT}:${DB_PORT}"
-    volumes:
-      - db_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+    networks:
+      - chitbook
 
-volumes:
-  db_data:
-    driver: local
+networks:
+  chitbook:
+    name: chitbook_net
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET}

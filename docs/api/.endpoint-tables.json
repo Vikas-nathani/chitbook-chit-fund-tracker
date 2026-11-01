@@ -1,0 +1,683 @@
+{
+  "DELETE /auctions/{auction_id}": {
+    "read": [
+      "auctions",
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "auctions"
+    ]
+  },
+  "DELETE /auth/sessions/{session_id}": {
+    "read": [
+      "auth_sessions",
+      "users"
+    ],
+    "write": [
+      "auth_audit_log",
+      "auth_sessions"
+    ]
+  },
+  "DELETE /groups/{group_id}": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "chit_groups"
+    ]
+  },
+  "DELETE /groups/{group_id}/members/{user_id}": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "memberships"
+    ]
+  },
+  "DELETE /media/{media_id}": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "group_media",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "group_media"
+    ]
+  },
+  "DELETE /simple-chits/{chit_id}": {
+    "read": [
+      "auth_sessions",
+      "simple_chit_entries",
+      "simple_chit_members",
+      "simple_chit_payouts",
+      "simple_chits",
+      "users"
+    ],
+    "write": [
+      "simple_chit_entries",
+      "simple_chit_members",
+      "simple_chit_payouts",
+      "simple_chits"
+    ]
+  },
+  "DELETE /simple-chits/{chit_id}/payouts/{month}": {
+    "read": [
+      "auth_sessions",
+      "simple_chit_entries",
+      "simple_chit_members",
+      "simple_chit_payouts",
+      "simple_chits",
+      "users"
+    ],
+    "write": [
+      "simple_chit_entries",
+      "simple_chit_payouts"
+    ]
+  },
+  "DELETE /users/{user_id}": {
+    "read": [
+      "auth_sessions",
+      "users"
+    ],
+    "write": [
+      "users"
+    ]
+  },
+  "GET /auctions/group/{group_id}": {
+    "read": [
+      "auctions",
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /auctions/winner/{user_id}": {
+    "read": [
+      "auctions",
+      "auth_sessions",
+      "chit_groups",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /auctions/{auction_id}": {
+    "read": [
+      "auctions",
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /auth/me": {
+    "read": [
+      "auth_sessions",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /auth/sessions": {
+    "read": [
+      "auth_sessions",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /chat/group/{group_id}/messages": {
+    "read": [
+      "auth_sessions",
+      "chat_messages",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /funds": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "funds",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /funds/group/{group_id}": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "funds",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /groups": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "funds",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /groups/{group_id}": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "funds",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /groups/{group_id}/members": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /health/ready": {
+    "read": [],
+    "write": []
+  },
+  "GET /ledger": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "ledger_entries",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /ledger/pdf": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "ledger_entries",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /loans/group/{group_id}/user/{user_id}/payable": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "member_loans",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /loans/user/{user_id}": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "member_loans",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /notifications/user/{user_id}": {
+    "read": [
+      "auth_sessions",
+      "notifications",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /notifications/user/{user_id}/unread-count": {
+    "read": [
+      "auth_sessions",
+      "notifications",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /payments/group/{group_id}": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "payments",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /payments/group/{group_id}/user/{user_id}": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "payments",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /polls/group/{group_id}": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /reports/group/{group_id}/audit": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "payments",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /reports/group/{group_id}/summary": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "funds",
+      "member_loans",
+      "memberships",
+      "payments",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /reports/user/{user_id}": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "funds",
+      "member_loans",
+      "memberships",
+      "payments",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /simple-chits": {
+    "read": [
+      "auth_sessions",
+      "simple_chit_entries",
+      "simple_chit_members",
+      "simple_chit_payouts",
+      "simple_chits",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /simple-chits/stats": {
+    "read": [
+      "auth_sessions",
+      "simple_chit_entries",
+      "simple_chit_members",
+      "simple_chit_payouts",
+      "simple_chits",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /simple-chits/{chit_id}": {
+    "read": [
+      "auth_sessions",
+      "simple_chits",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /users": {
+    "read": [
+      "auth_sessions",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "GET /users/{user_id}": {
+    "read": [
+      "auth_sessions",
+      "users"
+    ],
+    "write": []
+  },
+  "PATCH /funds/{fund_id}": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "funds",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "funds"
+    ]
+  },
+  "PATCH /groups/{group_id}": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": []
+  },
+  "PATCH /simple-chits/{chit_id}": {
+    "read": [
+      "auth_sessions",
+      "simple_chit_entries",
+      "simple_chit_members",
+      "simple_chit_payouts",
+      "simple_chits",
+      "users"
+    ],
+    "write": [
+      "simple_chit_entries"
+    ]
+  },
+  "POST /auctions": {
+    "read": [
+      "auctions",
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "auctions"
+    ]
+  },
+  "POST /auth/login": {
+    "read": [
+      "users"
+    ],
+    "write": [
+      "auth_audit_log",
+      "auth_sessions",
+      "users"
+    ]
+  },
+  "POST /auth/logout": {
+    "read": [
+      "auth_sessions",
+      "users"
+    ],
+    "write": [
+      "auth_audit_log",
+      "auth_sessions"
+    ]
+  },
+  "POST /auth/refresh": {
+    "read": [
+      "auth_sessions",
+      "users"
+    ],
+    "write": [
+      "auth_audit_log",
+      "auth_sessions"
+    ]
+  },
+  "POST /auth/register": {
+    "read": [
+      "users"
+    ],
+    "write": [
+      "auth_audit_log",
+      "users"
+    ]
+  },
+  "POST /chat/group/{group_id}/messages": {
+    "read": [
+      "auth_sessions",
+      "chat_messages",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "chat_messages"
+    ]
+  },
+  "POST /groups": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "users"
+    ],
+    "write": [
+      "chit_groups",
+      "funds",
+      "memberships"
+    ]
+  },
+  "POST /groups/join": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "memberships",
+      "notifications"
+    ]
+  },
+  "POST /groups/{group_id}/members": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "memberships"
+    ]
+  },
+  "POST /ledger": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "ledger_entries",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "ledger_entries"
+    ]
+  },
+  "POST /loans": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "member_loans",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "member_loans"
+    ]
+  },
+  "POST /media": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "group_media",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "group_media"
+    ]
+  },
+  "POST /payments": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "payments",
+      "users"
+    ],
+    "write": [
+      "payments"
+    ]
+  },
+  "POST /payments/{payment_id}/verify": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "payments",
+      "users"
+    ],
+    "write": [
+      "payments"
+    ]
+  },
+  "POST /polls": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "poll_options",
+      "poll_votes",
+      "polls",
+      "users"
+    ],
+    "write": [
+      "poll_options",
+      "polls"
+    ]
+  },
+  "POST /polls/vote": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "poll_options",
+      "poll_votes",
+      "polls",
+      "users"
+    ],
+    "write": [
+      "poll_votes"
+    ]
+  },
+  "POST /simple-chits": {
+    "read": [
+      "auth_sessions",
+      "simple_chits",
+      "users"
+    ],
+    "write": [
+      "simple_chit_entries",
+      "simple_chit_members",
+      "simple_chits"
+    ]
+  },
+  "POST /simple-chits/{chit_id}/members": {
+    "read": [
+      "auth_sessions",
+      "simple_chit_entries",
+      "simple_chit_members",
+      "simple_chit_payouts",
+      "simple_chits",
+      "users"
+    ],
+    "write": [
+      "simple_chit_entries",
+      "simple_chit_members"
+    ]
+  },
+  "PUT /groups/{group_id}/members/{user_id}/status": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "memberships"
+    ]
+  },
+  "PUT /loans/{loan_id}/status": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "member_loans",
+      "memberships",
+      "users"
+    ],
+    "write": [
+      "member_loans"
+    ]
+  },
+  "PUT /notifications/{notification_id}/read": {
+    "read": [
+      "auth_sessions",
+      "notifications",
+      "users"
+    ],
+    "write": [
+      "notifications"
+    ]
+  },
+  "PUT /polls/{poll_id}/close": {
+    "read": [
+      "auth_sessions",
+      "chit_groups",
+      "poll_options",
+      "poll_votes",
+      "polls",
+      "users"
+    ],
+    "write": [
+      "polls"
+    ]
+  },
+  "PUT /simple-chits/{chit_id}/payouts/{month}": {
+    "read": [
+      "auth_sessions",
+      "simple_chit_entries",
+      "simple_chit_members",
+      "simple_chit_payouts",
+      "simple_chits",
+      "users"
+    ],
+    "write": [
+      "simple_chit_entries",
+      "simple_chit_payouts"
+    ]
+  },
+  "PUT /users/{user_id}/password": {
+    "read": [
+      "auth_sessions",
+      "users"
+    ],
+    "write": [
+      "auth_sessions",
+      "users"
+    ]
+  }
+}

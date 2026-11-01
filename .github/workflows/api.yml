@@ -1,0 +1,46 @@
+name: api
+
+on:
+  push:
+    paths: ["apps/api/**", "scripts/**", "docs/**", ".github/workflows/api.yml"]
+  pull_request:
+    paths: ["apps/api/**", "scripts/**", "docs/**", ".github/workflows/api.yml"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: chitbook_app
+          POSTGRES_PASSWORD: ci-password
+          POSTGRES_DB: chitbook_test
+          TZ: Asia/Kolkata
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U chitbook_app" --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: CI .env (test values only)
+        run: |
+          sed -e 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-password/' \
+              -e 's/^JWT_SECRET=.*/JWT_SECRET=ci-only-secret-0123456789abcdefghijklmnopqrstuvwxyz/' \
+              -e 's/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=Ci-admin-2026/' \
+              -e 's/^POSTGRES_SUPERUSER_PASSWORD=.*/POSTGRES_SUPERUSER_PASSWORD=unused/' \
+              .env.example > .env
+      - name: Install
+        working-directory: apps/api
+        run: uv sync --frozen
+      - name: Lint & types
+        working-directory: apps/api
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run mypy
+      - name: Tests (records SQL tables for the docs)
+        working-directory: apps/api
+        run: TRACE_SQL_TABLES="$GITHUB_WORKSPACE/docs/api/.endpoint-tables.json" uv run pytest -q
+      - name: Generated docs are up to date
+        run: apps/api/.venv/bin/python scripts/gen_api_docs.py --check

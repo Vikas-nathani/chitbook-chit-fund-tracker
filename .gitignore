@@ -1,42 +1,25 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
-.vscode/
-docs
-
+# Secrets & local config
 .env
-chit-client
-logs
-/logs
+.claude/settings.local.json
+
+# Logs & backups
 logs/
 *.log
 *.log.*
+backups/
+
+# Python (apps/api)
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Node / Expo (apps/mobile has its own .gitignore too)
+node_modules/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
